@@ -119,6 +119,14 @@ void setup(){
     if(!request->authenticate(ota_user, ota_pass))
         return request->requestAuthentication();
     request->send(200, "text/plain", "Login Success!");
+    // Long term I shouldn't leave this enabled.
+    // Theres too many vulns where an ESP32 can be crashed via wifi packets,
+    // and I don't fully trust the OTA security ATM.  
+    // I relied on updates only being allowd for 1 minute after boot, but
+    // with reset vulns I no longer trust that. 
+    // Also TBH programming via USB isn't hard. 
+    // TODO.
+    // Once I am happy with the software, disable this. 
     allow_update = true;
     allowed_update_at = millis();
   });
