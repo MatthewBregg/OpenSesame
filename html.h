@@ -1,5 +1,5 @@
-String GetHtml() {
-  String html = R"(
+const char* GetHtml() {
+  const char* html = R"(
   
   <!DOCTYPE html> <html>
   <meta content="text/html;charset=utf-8" http-equiv="Content-Type">
@@ -18,6 +18,8 @@ String GetHtml() {
   </head>
   <body>
   <a class="button" onclick="handleDoor();" id="door_button">Open</a>
+  <h1> OTA Enabled: <span id="ota"></span></h1>
+  <h1> HEAP Data: <span id="free_heap"></span>, <span id="max_heap"</span></h1>
   <h1> Door was Last Opened At: <span id="opened_at"></span></h1>
   <h1> Uptime: <span id="uptime"></span></h1>
   <script>
@@ -70,9 +72,15 @@ String GetHtml() {
           //console.log(this.responseText);
           let opened_at = json["opened_at"];
           let uptime = json["uptime"];
+          let ota = json["ota"];
+          let free_heap = json["free_heap"];
+          let max_heap = json["max_heap"];
          
           document.getElementById("opened_at").innerHTML = opened_at;
           document.getElementById("uptime").innerHTML = uptime;
+          document.getElementById("ota").innerHTML = ota;
+          document.getElementById("free_heap").innerHTML = free_heap;
+          document.getElementById("max_heap").innerHTML = max_heap;
         }
       };
       xhttp.open("GET", "status_json", true);
@@ -81,7 +89,7 @@ String GetHtml() {
     getData();
     set_door_button_appearence(false);
   </script>
-  <div> Version 1.0 </div>
+  <div> Version 1.2 </div>
   </body>
   )";
   return html;

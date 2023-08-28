@@ -31,6 +31,7 @@ bool shouldReboot = false;
 
 const int led = 2;
 const int relay = 14;
+const int enable_update_pin = 4;
 const int RELAY_ON = HIGH;
 const int RELAY_OFF = LOW;
 
@@ -44,21 +45,40 @@ void onRequest(AsyncWebServerRequest *request){
 }
 
 String getStatusAsJson() {
-  const int capacity= JSON_OBJECT_SIZE(2);
+  const int capacity= JSON_OBJECT_SIZE(5);
   StaticJsonDocument<capacity> doc;
   doc["uptime"] = millis()/1000;
   doc["opened_at"] = opened_at/1000;
+  doc["ota"] = update_pin_read_no_debounce();
+  doc["free_heap"] = ESP.getFreeHeap();
+  doc["max_heap"] = ESP.getMaxAllocHeap();
   String output;
   serializeJson(doc, output);
   return output;
 }
 
 bool allow_update = false;
-long allowed_update_at = 0;
+
+bool update_pin_read_no_debounce() {
+  return digitalRead(enable_update_pin) == LOW;
+}
+
+bool update_pin_set() {
+   if (update_pin_read_no_debounce()) {
+      delay(50);
+      if (update_pin_read_no_debounce()) {
+        return true;
+      }
+   }
+   return false;
+}
+
+unsigned long allowed_update_at = 0;
 void setup(){
   Serial.begin(115200);
   pinMode(led,OUTPUT);
   pinMode(relay, OUTPUT);
+  pinMode(enable_update_pin, INPUT_PULLUP);
   digitalWrite(led, LOW);
   digitalWrite(relay, RELAY_OFF);
   const char* hostname = "open_sesame";
@@ -72,7 +92,9 @@ void setup(){
     Serial.printf("WiFi Failed!\n");
     return;
   }
-
+  // Disable wifi power saving mode!
+  WiFi.setSleep(false);
+   
   // We must initialize spiffs in order to read the favicon/any other files.
   // IF WE DON'T INIT SPIFFS any send(SPIFFS,...) will fail mysteriously!
   if(!SPIFFS.begin(true)){
@@ -116,20 +138,20 @@ void setup(){
 
    // HTTP basic authentication
   server.on("/login", HTTP_GET, [](AsyncWebServerRequest *request){
-    if(!request->authenticate(ota_user, ota_pass))
+    if(!request->authenticate(ota_user, ota_pass)) {
         return request->requestAuthentication();
-    request->send(200, "text/plain", "Login Success!");
-    // Long term I shouldn't leave this enabled.
-    // Theres too many vulns where an ESP32 can be crashed via wifi packets,
-    // and I don't fully trust the OTA security ATM.  
-    // I relied on updates only being allowd for 1 minute after boot, but
-    // with reset vulns I no longer trust that. 
-    // Also TBH programming via USB isn't hard. 
-    // TODO.
-    // Once I am happy with the software, disable this. 
-    allow_update = true;
-    allowed_update_at = millis();
+    }
+    // Update security: Only allow OTA updates if the physical pin is set.
+    if (update_pin_set()) {
+      request->send(200, "text/plain", "Login Success!");
+      allow_update = true;
+      allowed_update_at = millis();
+    } else {
+      request->send(200, "text/plain", "Login succeeded, but update pin not set.");
+      allow_update = false;
+    }
   });
+
   // Simple Firmware Update Form
   server.on("/update", HTTP_GET, [](AsyncWebServerRequest *request){
     if (allow_update) {
@@ -141,6 +163,7 @@ void setup(){
  
   // From the WebServers examples list: https://github.com/me-no-dev/ESPAsyncWebServer. 
   // Can export compiled binary for this from Sketch menu (Ctrl-Alt-S).. 
+  // Note: It's the bin file, not the elf file.
   server.on("/update", HTTP_POST, [](AsyncWebServerRequest *request) {
       shouldReboot = !Update.hasError();
       String response_text = shouldReboot?"OK":"FAIL";
@@ -182,12 +205,10 @@ void setup(){
   // ends in the callbacks below.
   server.onNotFound(onRequest);
   server.begin();
-
- 
 }
 
 void loop(){
-  // For security, only allow update early on boot.
+  // Disable update after a minute.
   if (millis() - allowed_update_at > (60* 1000)) {
     allow_update = false;
   }
