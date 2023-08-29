@@ -221,9 +221,7 @@ void loop(){
   // There are better ways to do this, mentioned ^ and 
   // https://arduino-esp8266.readthedocs.io/en/latest/esp8266wifi/station-class.html#setautoreconnect
   // But those seem to have more intricacies, and if this works...
-  // Note: Takes roughly two minutes to reconnect.  
-  // The wait to connect loop in the beginning is one minute timeout, so that's sus to me. 
-  // Note sure why, but whatever. 
+  // Note: Reconnect quick.  Realized my AP kick command has a two minute ban hidden in it. 
       || (WiFi.status() != WL_CONNECTED)) {
     Serial.println("Rebooting...");
     delay(100);
