@@ -90,6 +90,7 @@ void setup(){
   WiFi.setHostname(hostname);
   if (WiFi.waitForConnectResult() != WL_CONNECTED) {
     Serial.printf("WiFi Failed!\n");
+    // Upon entering Loop(), the ESP32 will be rebooted.
     return;
   }
   // Disable wifi power saving mode!
@@ -213,7 +214,17 @@ void loop(){
     allow_update = false;
   }
 
-  if(shouldReboot){
+  if(shouldReboot 
+  // This WiFi lib. will not auto-reconnect if the wifi blips. (Or fails to connect in the first place) 
+  // Since this is such a simple device, just reboot when this happens. 
+  // See https://forum.arduino.cc/t/auto-reconnect-to-wifi/1082190/2.
+  // There are better ways to do this, mentioned ^ and 
+  // https://arduino-esp8266.readthedocs.io/en/latest/esp8266wifi/station-class.html#setautoreconnect
+  // But those seem to have more intricacies, and if this works...
+  // Note: Takes roughly two minutes to reconnect.  
+  // The wait to connect loop in the beginning is one minute timeout, so that's sus to me. 
+  // Note sure why, but whatever. 
+      || (WiFi.status() != WL_CONNECTED)) {
     Serial.println("Rebooting...");
     delay(100);
     ESP.restart();

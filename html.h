@@ -89,7 +89,7 @@ const char* GetHtml() {
     getData();
     set_door_button_appearence(false);
   </script>
-  <div> Version 1.2 </div>
+  <div> Version 1.4 </div>
   </body>
   )";
   return html;
